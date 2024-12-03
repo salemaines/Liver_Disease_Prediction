@@ -1,0 +1,151 @@
+---
+title: "Predictive Liver Disease"
+output: html_notebook
+---
+
+Libraries and packages
+```{r}
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(randomForest)
+library(car)
+```
+
+
+Download the dataset
+
+```{r}
+data <- read.csv("/Users/asus/Desktop/IFB project/data/Liver_disease_data.csv")
+```
+
+Inspect data
+
+```{r}
+head(data)
+str(data)
+summary(data)
+```
+Although the author of the dataset mentioned that the data was preprocessed, let's run some simple tests to make sure the dataset does not have missing values, outliers, duplicates, features that can lead to multicollinearity and also do a simple test to understand what might be good features to start our model by doing a random forest feature importance. 
+
+So, starting with missing values 
+
+
+```{r}
+colSums(is.na(data))
+```
+
+No missing values in any of the variables. Moving on to outliers,
+
+```{r}
+detect_outliers <- function(column) {
+  # check if the column is numeric and not binary
+  if (is.numeric(column) && length(unique(column)) > 2) {
+    Q1 <- quantile(column, 0.25, na.rm = TRUE)
+    Q3 <- quantile(column, 0.75, na.rm = TRUE)
+    IQR <- Q3 - Q1
+    lower_bound <- Q1 - 1.5 * IQR
+    upper_bound <- Q3 + 1.5 * IQR
+    outliers <- which(column < lower_bound | column > upper_bound)
+    return(outliers)
+  } else {
+    return(NULL)  # Skip binary or non-numeric columns
+  }
+}
+
+# apply the function to all columns of a dataset
+check_outliers <- function(data) {
+  outlier_report <- list()
+  
+  for (colname in names(data)) {
+    outliers <- detect_outliers(data[[colname]])
+    if (!is.null(outliers)) {
+      outlier_report[[colname]] <- outliers
+    }
+  }
+  
+  return(outlier_report)
+}
+
+outlier_results <- check_outliers(data)
+
+# print results
+for (col in names(outlier_results)) {
+  cat("Outliers detected in column:", col, "\n")
+  print(outlier_results[[col]])
+  cat("\n")
+}
+```
+Also, no outliers in any important variable.
+
+Duplicates:
+
+```{r}
+duplicates <- data[duplicated(data), ]
+print(duplicates)
+```
+
+Cheking for irrelevant or redundant features using random forest.
+
+```{r}
+low_variance <- nearZeroVar(data, saveMetrics = TRUE)
+print(low_variance)
+```
+
+Highly correlated features 
+
+```{r}
+cor_matrix <- cor(data[, sapply(data, is.numeric)])
+high_cor <- findCorrelation(cor_matrix, cutoff = 0.8)
+print(high_cor)
+```
+
+Random forest simple test to understand what might be some interesting variables to start our model with 
+
+```{r}
+data$Diagnosis <- as.factor(data$Diagnosis)
+rf_model <- randomForest(Diagnosis ~ ., data = data)
+importance(rf_model)
+
+# Plotting feature importance
+feature_importance <- importance(rf_model)
+feature_importance_df <- data.frame(
+  Feature = rownames(feature_importance),
+  Importance = feature_importance[, 1]
+)
+
+# Sort features by importance
+feature_importance_df <- feature_importance_df[order(-feature_importance_df$Importance), ]
+
+# Plot top 10 features
+ggplot(feature_importance_df[1:10, ], aes(x = reorder(Feature, Importance), y = Importance)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  labs(title = "Top 10 Important Features", x = "Feature", y = "Importance")
+
+```
+
+After understand how the dataset is made and make sure it is correctly pre processed we can start a more depth exploratory data analysis.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
