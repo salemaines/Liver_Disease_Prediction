@@ -89,6 +89,31 @@ for (cont_var in continuous_vars) {
   print(p)  
 }
 
+#Using the combine effect of genetics and lifestyle to explore interactions between predictors.
+
+ggplot(data, aes(x = AlcoholConsumption, y = LiverFunctionTest, color = GeneticRisk)) +
+  geom_point() +
+  facet_wrap(~ Diagnosis) +
+  labs(title = "Interaction: AlcoholConsumption vs LiverFunctionTest by GeneticRisk",
+       x = "Alcohol Consumption", y = "Liver Function Test")
+
+# PCA variance 
+
+pca_var <- pca_model$sdev^2
+pca_var_explained <- pca_var / sum(pca_var)
+
+# scree plot
+plot(pca_var_explained, type = "b", pch = 19, col = "blue", 
+     xlab = "Principal Component", ylab = "Proportion of Variance Explained",
+     main = "Scree Plot")
+
+# how much each variable contributes to each PC
+
+print(pca_model$rotation)
+
+# contribution of variables to PC1
+loading_PC1 <- pca_model$rotation[,1]
+loading_PC1[order(abs(loading_PC1), decreasing = TRUE)]
 
 
 

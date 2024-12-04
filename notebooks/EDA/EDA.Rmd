@@ -14,12 +14,14 @@ library(car)
 library(gridExtra)
 library(reshape2)
 library(ggcorrplot)
+library(corrplot)
+library(ggfortify)
 ```
 
 Download the dataset
 
 ```{r}
-data <- read.csv("/Users/asus/Desktop/IFB project/data/Liver_disease_data.csv")
+data <- read.csv("/Users/asus/Desktop/R/Liver_disease_data.csv")
 head(data)
 summary(data)
 ```
@@ -118,6 +120,49 @@ for (cont_var in continuous_vars) {
   print(p)  # Explicitly print the plot
 }
 ```
+Using the combine effect of genetics and lifestyle to explore interactions between predictors.
+
+```{r}
+ggplot(data, aes(x = AlcoholConsumption, y = LiverFunctionTest, color = GeneticRisk)) +
+  geom_point() +
+  facet_wrap(~ Diagnosis) +
+  labs(title = "Interaction: AlcoholConsumption vs LiverFunctionTest by GeneticRisk",
+       x = "Alcohol Consumption", y = "Liver Function Test")
+```
+Now let's do some PCA:
+See how much of the variance is explained by the first PCs
+
+
+```{r}
+pca_var <- pca_model$sdev^2
+pca_var_explained <- pca_var / sum(pca_var)
+
+# scree plot
+plot(pca_var_explained, type = "b", pch = 19, col = "blue", 
+     xlab = "Principal Component", ylab = "Proportion of Variance Explained",
+     main = "Scree Plot")
+```
+
+Which variables contribute to each PC
+
+
+```{r}
+# loadings for each variable
+print(pca_model$rotation)
+
+# contribution of variables to PC1
+loading_PC1 <- pca_model$rotation[,1]
+loading_PC1[order(abs(loading_PC1), decreasing = TRUE)]
+```
+
+
+
+
+
+
+
+
+
 
 
 

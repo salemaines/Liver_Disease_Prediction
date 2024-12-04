@@ -1,19 +1,260 @@
 ---
-title: "R Notebook"
+title: "Predictive Liver Disease"
 output: html_notebook
 ---
 
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+Libraries and packages
 
 ```{r}
-plot(cars)
+library(ggplot2)
+library(dplyr)
+library(caret)
+library(randomForest)
+library(car)
+library(gridExtra)
+library(reshape2)
+library(ggcorrplot)
+library(pROC)  
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+Download the dataset
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+```{r}
+data <- read.csv("/Users/asus/Desktop/R/Liver_disease_data.csv")
+head(data)
+summary(data)
+```
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+As seen in the EDA part, the model has some categorical variables which assume values of 0 and 1 (for example female and male). In R, it is important to convert these variables into factors which are a specific type of data design to handle categorical data. 
+
+```{r}
+data$Diagnosis <- as.factor(data$Diagnosis)
+data$Gender <- as.factor(data$Gender)
+data$Smoking <- as.factor(data$Smoking)
+data$Diabetes <- as.factor(data$Diabetes)
+data$Hypertension <- as.factor(data$Hypertension)
+```
+
+
+To prevent over fitting and make sure the model generalizes well to unseen data, we are going to divide the data into test and training. 
+
+```{r}
+set.seed(123) # generate reproducible psudorandom numbers 
+trainIndex <- createDataPartition(data$Diagnosis, p = 0.7, list = FALSE) # divide 70% data to train and 30% to test
+train_data <- data[trainIndex, ]
+test_data <- data[-trainIndex, ]
+```
+
+Train the logistic regression model 
+
+```{r}
+model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
+summary(model)
+```
+
+Make predictions with the test data 
+
+```{r}
+test_data$predicted_prob <- predict(model, newdata = test_data, type = "response")
+test_data$predicted_class <- ifelse(test_data$predict_prob > 0.5, 1, 0)
+```
+
+Confusion matrix to evaluate results
+
+```{r}
+print(test_data$Diagnosis)
+```
+
+```{r}
+print(test_data$predicted_class)
+```
+
+
+```{r}
+conf_matrix <- table(test_data$Diagnosis, test_data$predicted_class)
+print(conf_matrix)
+```
+
+Evaluation metrics 
+
+```{r}
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+cat("Accuracy:", accuracy, "\n")
+
+precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+cat("Precision:", precision, "\n")
+cat("Recall:", recall, "\n")
+cat("F1 Score:", f1_score, "\n")
+
+# Plot ROC curve
+roc_obj <- roc(test_data$Diagnosis, test_data$predicted_prob)
+plot(roc_obj, col = "blue", main = "ROC Curve")
+cat("AUC:", auc(roc_obj), "\n")
+```
+
+Simple regression models 
+
+```{r}
+# Simple linear regression for Age vs. Liver Function Test
+m <- lm(LiverFunctionTest ~ Age, data = data)
+
+# Plot the regression line
+plot(LiverFunctionTest ~ Age, data = data,
+     main = "Simple Regression: LiverFunctionTest vs Age",
+     xlab = "Age", ylab = "Liver Function Test")
+abline(m, col = "blue", lwd = 2)
+
+```
+
+Cook's distance plot 
+
+```{r}
+# Fit a regression model
+m <- lm(Diagnosis ~ BMI + Age, data = data)
+
+# Calculate Cook's distance
+cooks <- cooks.distance(m)
+
+# Plot Cook's distance
+plot(cooks, type = "h", main = "Cook's Distance", ylab = "Cook's Distance")
+abline(h = 4/(nrow(data) - length(coef(m))), col = "red", lty = 2) # Threshold line
+
+```
+
+
+Multiple regression models 
+
+```{r}
+# Fit a model with interaction terms
+m2 <- lm(Diagnosis ~ BMI + Age + GeneticRisk * AlcoholConsumption, data = data)
+
+# Summary of the model
+summary(m2)
+
+```
+
+Model selection using stepwise regression 
+
+```{r}
+mInit <- lm(Diagnosis ~ 1, data = data) # Start with intercept-only model
+
+
+Scope <- formula(Diagnosis ~ Age + BMI + AlcoholConsumption + Smoking +
+                   GeneticRisk + PhysicalActivity + Diabetes + Hypertension + 
+                   LiverFunctionTest + GeneticRisk * AlcoholConsumption)
+
+mfit <- step(mInit, scope = Scope, direction = "forward")
+summary(mfit) # Summary of the best model
+
+```
+
+Evaluate choosen model
+
+```{r}
+plot(residuals(mfit), main = "Residuals of Final Model", ylab = "Residuals")
+
+```
+
+Model performance 
+
+```{r}
+# Predict on test data
+
+#predictions <- predict(mfit, newdata = test_data, type = "response")
+
+# Assess accuracy (if `Diagnosis` is binary)
+
+#predicted_class <- ifelse(predictions > 0.5, 1, 0)
+#actual_class <- test_data$Diagnosis
+
+#confusion_matrix <- table(Predicted = predicted_class, Actual = actual_class)
+#confusion_matrix
+
+```
+
+Code based on the logistic regression class 
+
+```{r}
+# Load necessary libraries
+library(caret) # For splitting data
+library(MASS)  # For stepwise regression
+library(pROC)  # For ROC-AUC
+
+# Assume 'data' is your dataset
+# Convert categorical variables to factors
+data$Gender <- as.factor(data$Gender)
+data$Smoking <- as.factor(data$Smoking)
+data$Diabetes <- as.factor(data$Diabetes)
+data$Hypertension <- as.factor(data$Hypertension)
+data$GeneticRisk <- as.factor(data$GeneticRisk)
+data$Diagnosis <- as.factor(data$Diagnosis) # Target variable
+
+# Split into training and testing datasets
+set.seed(123)
+trainIndex <- createDataPartition(data$Diagnosis, p = 0.8, list = FALSE)
+train_data <- data[trainIndex, ]
+test_data <- data[-trainIndex, ]
+
+# Initial Model with all predictors
+initial_model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
+
+# Evaluate initial model
+summary(initial_model)
+AIC(initial_model)
+
+# Stepwise model selection
+scope <- formula(Diagnosis ~ Age + Gender + BMI + AlcoholConsumption + Smoking + 
+                 GeneticRisk + PhysicalActivity + Diabetes + Hypertension + 
+                 LiverFunctionTest)
+stepwise_model <- step(glm(Diagnosis ~ 1, data = train_data, family = binomial), 
+                       scope = scope, direction = "both")
+
+# Final Model from stepwise selection
+summary(stepwise_model)
+AIC(stepwise_model)
+
+# Testing Interaction Terms
+interaction_model <- glm(Diagnosis ~ Age + Gender * AlcoholConsumption + BMI + 
+                         LiverFunctionTest + Smoking * GeneticRisk, 
+                         data = train_data, family = binomial)
+
+summary(interaction_model)
+
+# Compare models
+models <- list(initial = initial_model, stepwise = stepwise_model, interaction = interaction_model)
+aics <- sapply(models, AIC)
+print(aics)
+
+# Predict on test data
+pred_probs <- predict(stepwise_model, newdata = test_data, type = "response")
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+
+# Confusion Matrix
+confusionMatrix(as.factor(pred_class), test_data$Diagnosis)
+
+# ROC-AUC
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+plot(roc_curve)
+auc(roc_curve)
+
+# Diagnostics: Cook's Distance
+cooksd <- cooks.distance(stepwise_model)
+plot(cooksd, main = "Cook's Distance for Stepwise Model")
+abline(h = 4/(nrow(train_data)-length(stepwise_model$coefficients)-2), col = "red")
+
+# Conclusion
+print("The best model is selected based on AIC and evaluated using ROC-AUC.")
+
+```
+
+
+
+
+
+
+
+
 
