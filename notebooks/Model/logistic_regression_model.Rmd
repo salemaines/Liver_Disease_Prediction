@@ -45,7 +45,7 @@ train_data <- data[trainIndex, ]
 test_data <- data[-trainIndex, ]
 ```
 
-Train the logistic regression model 
+Train the logistic regression model given that our class Diagnostic is the dependent variable and the other variables are independent and that the outcome is binary. 
 
 ```{r}
 model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
@@ -55,201 +55,94 @@ summary(model)
 Make predictions with the test data 
 
 ```{r}
-test_data$predicted_prob <- predict(model, newdata = test_data, type = "response")
-test_data$predicted_class <- ifelse(test_data$predict_prob > 0.5, 1, 0)
+pred_probs <- predict(model, newdata = test_data, type = "response")
+
+# Convert probabilities to class labels (0 or 1)
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+
 ```
 
 Confusion matrix to evaluate results
 
 ```{r}
-print(test_data$Diagnosis)
-```
-
-```{r}
-print(test_data$predicted_class)
-```
-
-
-```{r}
-conf_matrix <- table(test_data$Diagnosis, test_data$predicted_class)
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
 print(conf_matrix)
+```
+
+```{r}
+precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+print(paste("Precision: ", precision))
+print(paste("Recall: ", recall))
+print(paste("F1 Score: ", f1_score))
+```
+
+
+```{r}
+library(pROC)
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+plot(roc_curve, col = "blue", main = "ROC Curve")
+auc_value <- auc(roc_curve)
+print(paste("AUC: ", auc_value))
 ```
 
 Evaluation metrics 
 
 ```{r}
-accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
-cat("Accuracy:", accuracy, "\n")
+cooks_distance <- cooks.distance(model)
+plot(cooks_distance, main = "Cook's Distance")
+abline(h = 4 / nrow(train_data), col = "red", lty = 2)
+```
 
+
+
+```{r}
+# Null model (only the intercept)
+null_model <- glm(Diagnosis ~ 1, data = train_data, family = binomial)
+
+# Full model with all predictors
+full_model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
+
+# Forward selection using AIC as the criterion
+stepwise_model <- step(null_model, scope = list(lower = null_model, upper = full_model), direction = "forward")
+
+# Summary of the final model
+summary(stepwise_model)
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+# Predict probabilities on the test data
+pred_probs <- predict(stepwise_model, newdata = test_data, type = "response")
+
+# Convert probabilities to class labels (threshold = 0.5)
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+
+# Confusion Matrix
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
+print(conf_matrix)
+
+# Calculate Accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Accuracy: ", round(accuracy * 100, 2), "%"))
+
+# Optional: Precision, Recall, F1-Score
 precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
 recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
 f1_score <- 2 * (precision * recall) / (precision + recall)
 
-cat("Precision:", precision, "\n")
-cat("Recall:", recall, "\n")
-cat("F1 Score:", f1_score, "\n")
-
-# Plot ROC curve
-roc_obj <- roc(test_data$Diagnosis, test_data$predicted_prob)
-plot(roc_obj, col = "blue", main = "ROC Curve")
-cat("AUC:", auc(roc_obj), "\n")
-```
-
-Simple regression models 
-
-```{r}
-# Simple linear regression for Age vs. Liver Function Test
-m <- lm(LiverFunctionTest ~ Age, data = data)
-
-# Plot the regression line
-plot(LiverFunctionTest ~ Age, data = data,
-     main = "Simple Regression: LiverFunctionTest vs Age",
-     xlab = "Age", ylab = "Liver Function Test")
-abline(m, col = "blue", lwd = 2)
+print(paste("Precision: ", round(precision * 100, 2), "%"))
+print(paste("Recall: ", round(recall * 100, 2), "%"))
+print(paste("F1-Score: ", round(f1_score * 100, 2), "%"))
 
 ```
-
-Cook's distance plot 
-
-```{r}
-# Fit a regression model
-m <- lm(Diagnosis ~ BMI + Age, data = data)
-
-# Calculate Cook's distance
-cooks <- cooks.distance(m)
-
-# Plot Cook's distance
-plot(cooks, type = "h", main = "Cook's Distance", ylab = "Cook's Distance")
-abline(h = 4/(nrow(data) - length(coef(m))), col = "red", lty = 2) # Threshold line
-
-```
-
-
-Multiple regression models 
-
-```{r}
-# Fit a model with interaction terms
-m2 <- lm(Diagnosis ~ BMI + Age + GeneticRisk * AlcoholConsumption, data = data)
-
-# Summary of the model
-summary(m2)
-
-```
-
-Model selection using stepwise regression 
-
-```{r}
-mInit <- lm(Diagnosis ~ 1, data = data) # Start with intercept-only model
-
-
-Scope <- formula(Diagnosis ~ Age + BMI + AlcoholConsumption + Smoking +
-                   GeneticRisk + PhysicalActivity + Diabetes + Hypertension + 
-                   LiverFunctionTest + GeneticRisk * AlcoholConsumption)
-
-mfit <- step(mInit, scope = Scope, direction = "forward")
-summary(mfit) # Summary of the best model
-
-```
-
-Evaluate choosen model
-
-```{r}
-plot(residuals(mfit), main = "Residuals of Final Model", ylab = "Residuals")
-
-```
-
-Model performance 
-
-```{r}
-# Predict on test data
-
-#predictions <- predict(mfit, newdata = test_data, type = "response")
-
-# Assess accuracy (if `Diagnosis` is binary)
-
-#predicted_class <- ifelse(predictions > 0.5, 1, 0)
-#actual_class <- test_data$Diagnosis
-
-#confusion_matrix <- table(Predicted = predicted_class, Actual = actual_class)
-#confusion_matrix
-
-```
-
-Code based on the logistic regression class 
-
-```{r}
-# Load necessary libraries
-library(caret) # For splitting data
-library(MASS)  # For stepwise regression
-library(pROC)  # For ROC-AUC
-
-# Assume 'data' is your dataset
-# Convert categorical variables to factors
-data$Gender <- as.factor(data$Gender)
-data$Smoking <- as.factor(data$Smoking)
-data$Diabetes <- as.factor(data$Diabetes)
-data$Hypertension <- as.factor(data$Hypertension)
-data$GeneticRisk <- as.factor(data$GeneticRisk)
-data$Diagnosis <- as.factor(data$Diagnosis) # Target variable
-
-# Split into training and testing datasets
-set.seed(123)
-trainIndex <- createDataPartition(data$Diagnosis, p = 0.8, list = FALSE)
-train_data <- data[trainIndex, ]
-test_data <- data[-trainIndex, ]
-
-# Initial Model with all predictors
-initial_model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
-
-# Evaluate initial model
-summary(initial_model)
-AIC(initial_model)
-
-# Stepwise model selection
-scope <- formula(Diagnosis ~ Age + Gender + BMI + AlcoholConsumption + Smoking + 
-                 GeneticRisk + PhysicalActivity + Diabetes + Hypertension + 
-                 LiverFunctionTest)
-stepwise_model <- step(glm(Diagnosis ~ 1, data = train_data, family = binomial), 
-                       scope = scope, direction = "both")
-
-# Final Model from stepwise selection
-summary(stepwise_model)
-AIC(stepwise_model)
-
-# Testing Interaction Terms
-interaction_model <- glm(Diagnosis ~ Age + Gender * AlcoholConsumption + BMI + 
-                         LiverFunctionTest + Smoking * GeneticRisk, 
-                         data = train_data, family = binomial)
-
-summary(interaction_model)
-
-# Compare models
-models <- list(initial = initial_model, stepwise = stepwise_model, interaction = interaction_model)
-aics <- sapply(models, AIC)
-print(aics)
-
-# Predict on test data
-pred_probs <- predict(stepwise_model, newdata = test_data, type = "response")
-pred_class <- ifelse(pred_probs > 0.5, 1, 0)
-
-# Confusion Matrix
-confusionMatrix(as.factor(pred_class), test_data$Diagnosis)
-
-# ROC-AUC
-roc_curve <- roc(test_data$Diagnosis, pred_probs)
-plot(roc_curve)
-auc(roc_curve)
-
-# Diagnostics: Cook's Distance
-cooksd <- cooks.distance(stepwise_model)
-plot(cooksd, main = "Cook's Distance for Stepwise Model")
-abline(h = 4/(nrow(train_data)-length(stepwise_model$coefficients)-2), col = "red")
-
-# Conclusion
-print("The best model is selected based on AIC and evaluated using ROC-AUC.")
-
-```
-
 
 
 
