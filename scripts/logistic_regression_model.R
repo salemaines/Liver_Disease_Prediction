@@ -7,6 +7,7 @@ library(gridExtra)
 library(reshape2)
 library(ggcorrplot)
 library(pROC)
+library(pROC)
 
 data <- read.csv("/Users/asus/Desktop/R/Liver_disease_data.csv")
 head(data)
@@ -44,7 +45,7 @@ print(paste("Precision: ", precision))
 print(paste("Recall: ", recall))
 print(paste("F1 Score: ", f1_score))
 
-library(pROC)
+
 roc_curve <- roc(test_data$Diagnosis, pred_probs)
 plot(roc_curve, col = "blue", main = "ROC Curve")
 auc_value <- auc(roc_curve)
@@ -164,5 +165,5 @@ print(stepwise_results)
 # Summary of the final model
 summary(final_model)
 
-saveRDS(final_model, "/Users/asus/Desktop/IFB_project/api/logistic_regression_model.rds")
+#saveRDS(final_model, "/Users/asus/Desktop/IFB_project/api/logistic_regression_model.rds")
 
