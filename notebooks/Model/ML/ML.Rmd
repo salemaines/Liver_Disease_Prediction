@@ -1,4 +1,12 @@
-# Load necessary libraries
+---
+title: "Predictive Liver Disease - ML models"
+output: html_notebook
+---
+
+Libraries and packages
+
+
+```{r}
 library(caret)
 library(randomForest)
 library(e1071)
@@ -6,14 +14,19 @@ library(gbm)
 library(xgboost)
 library(nnet)
 library(naivebayes)
+```
 
-# Set seed for reproducibility
+
+Set a seed for reproducibility, ensuring random split between training and testing datasets and random initialization weights and parameters for the ML models
+
+```{r}
 set.seed(42)
+```
 
-# Load the data
-data <- read.csv("/Users/asus/Desktop/R/Liver_disease_data.csv")
 
-# Convert categorical variables to factors
+Pass the categorical variables to factors so R can handle them 
+
+```{r}
 data$Diagnosis <- as.factor(data$Diagnosis)
 data$Gender <- as.factor(data$Gender)
 data$Smoking <- as.factor(data$Smoking)
@@ -21,12 +34,19 @@ data$Diabetes <- as.factor(data$Diabetes)
 data$Hypertension <- as.factor(data$Hypertension)
 
 levels(data$Diagnosis) <- c("Class0", "Class1")
+```
 
-# Split data into training and testing sets
+Divide the data into train and test in order to do evaluation metrics tests 
+
+```{r}
 trainIndex <- createDataPartition(data$Diagnosis, p = 0.7, list = FALSE)
 train_data <- data[trainIndex, ]
 test_data <- data[-trainIndex, ]
+```
 
+Select ML models to test our data, with some general parameters 
+
+```{r}
 models <- list(
   RandomForest = list(method = "rf", tuneGrid = expand.grid(.mtry = c(2, 3, 4))),
   SVM = list(method = "svmRadial", tuneGrid = expand.grid(.C = c(0.1, 1, 10), .sigma = c(0.01, 0.1))),
@@ -45,8 +65,11 @@ models <- list(
 )
 
 model_results <- list()
+```
 
+Print performance evaluation for each of the models and save the models 
 
+```{r}
 for (model_name in names(models)) {
   
   cat("\nTraining", model_name, "...\n")
@@ -93,34 +116,7 @@ for (model_name in names(models)) {
   cat(sprintf("  Recall: %.2f\n", recall))
   cat(sprintf("  F1 Score: %.2f\n", f1_score))
 }
-
-
-# Directory to save the models and metrics
-save_dir <- "/Users/asus/Desktop/IFB_project/API"
-
-# Save each model and its metrics
-for (model_name in names(model_results)) {
-  # Save the model itself
-  saveRDS(model_results[[model_name]]$Model, file = file.path(save_dir, paste0(model_name, "_model.rds")))
-  
-  # Save the metrics separately
-  metrics <- list(
-    Accuracy = model_results[[model_name]]$Accuracy,
-    Precision = model_results[[model_name]]$Precision,
-    Recall = model_results[[model_name]]$Recall,
-    F1_Score = model_results[[model_name]]$F1_Score
-  )
-  saveRDS(metrics, file = file.path(save_dir, paste0(model_name, "_metrics.rds")))
-}
-
-
-
-
-
-
-
-
-
+```
 
 
 
