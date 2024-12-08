@@ -30,7 +30,7 @@ The dataset includes the following columns:
 - **notebooks/**: R Markdown notebooks with some explanations of the methods and results.
 - **figures/**: Contains plots and figures generated during analysis.
 - **api/**: Contains different APIs for logistic regression and machine learning models.
-- **requirements/**: Contains dependency files (`R_requirements.txt`, `data_requirements.md`, etc.) to ensure the environment is set up correctly.
+- **requirements/**: Contains dependency files to ensure the environment is set up correctly.
 
 ## Installation and Setup
 
