@@ -39,6 +39,7 @@ To get started with this project, you need to have R and the necessary R package
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/liver-disease-prediction.git
-cd liver-disease-prediction
+git clone https://github.com/salemaines/Liver_Disease_Prediction.git
+cd Liver_Disease_Prediction
+
 
