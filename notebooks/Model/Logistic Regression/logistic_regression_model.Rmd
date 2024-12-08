@@ -45,10 +45,33 @@ train_data <- data[trainIndex, ]
 test_data <- data[-trainIndex, ]
 ```
 
+There are many combinations of variables possible of choosing to perform a logistic regression. It is impossible to test all combination in order to see which is the best model for the prediction of the liver disease. So, in this work we perform two methods to see which can be the best combination of variables: the first is do the stepwise method, which is done in another notebook. The second is to do a literature review about this and understand which might be an interesting combination of variables. For that we allow the user to choose the variables and try and see the performance of that model.
+
+First, let's see which are the variables available for the modelling 
+
+```{r}
+cat("Available variables for modeling:\n")
+all_vars <- colnames(train_data)
+all_vars <- all_vars[all_vars != "Diagnosis"] # exclude the clas
+print(all_vars)
+```
+
+Second, we select the variables we want to put in our model 
+
+
+```{r}
+selected_vars <- c("Age", "BMI", "LiverFunctionTest")  # SPECIFY VARIABLES HERE
+selected_formula <- paste("Diagnosis ~", paste(selected_vars, collapse = " + "))
+
+# Print the selected formula
+cat("\nUsing the following formula for the model:", selected_formula, "\n")
+```
+
+
 Train the logistic regression model given that our class Diagnostic is the dependent variable and the other variables are independent and that the outcome is binary. 
 
 ```{r}
-model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
+model <- glm(as.formula(selected_formula), data = train_data, family = binomial)
 summary(model)
 ```
 
@@ -69,7 +92,13 @@ conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
 print(conf_matrix)
 ```
 
+Some evaluation metrics of the model
+
 ```{r}
+
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Accuracy: ", round(accuracy * 100, 2), "%"))
+
 precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
 recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
 f1_score <- 2 * (precision * recall) / (precision + recall)
@@ -79,70 +108,335 @@ print(paste("Recall: ", recall))
 print(paste("F1 Score: ", f1_score))
 ```
 
+ROC curve: graphical representation of a classification model's performance across different classification thresholds. Demonstrates the trade-off between sensitivity (true positive rate) and specificity (1 - false positive rate). And the AUC value, which summarizes the overall performance in a number that ranges between 0 and 1, where the closer to 1, the best.
 
 ```{r}
-library(pROC)
 roc_curve <- roc(test_data$Diagnosis, pred_probs)
 plot(roc_curve, col = "blue", main = "ROC Curve")
 auc_value <- auc(roc_curve)
 print(paste("AUC: ", auc_value))
 ```
 
-Evaluation metrics 
+Cook's distance: metric used in regression analysis to measure the influence of each data point on the estimated regression coefficients. It helps identify outliers or influential points that have a disproportionate effect on the fitted model. With the influencial points we can check if these are due to errors or natural variability or apply transformations to mitigate the influence of extreme values
 
 ```{r}
 cooks_distance <- cooks.distance(model)
-plot(cooks_distance, main = "Cook's Distance")
+
+# Plot Cook's Distance
+plot(cooks_distance, 
+     main = "Cook's Distance", 
+     ylab = "Cook's Distance", 
+     xlab = "Observation Index", 
+     pch = 20, 
+     col = ifelse(cooks_distance > (4 / nrow(train_data)), "red", "black"))
 abline(h = 4 / nrow(train_data), col = "red", lty = 2)
+
+# Highlight influential points
+influential_points <- which(cooks_distance > (4 / nrow(train_data)))
+print(paste("Influential points:", paste(influential_points, collapse = ", ")))
 ```
 
+For example in this case, we can see that the black points are not highly influential for the model and the red dots are considered influential points because their cook's distance is greater than the treshold. These are the points that might be disproportionately affecting the regression results. It is important to understand if these points are outliers our truly valid however extreme points of the data.
 
 
-```{r}
-# Null model (only the intercept)
-null_model <- glm(Diagnosis ~ 1, data = train_data, family = binomial)
+Now, let's built some different models given the literature review. 
 
-# Full model with all predictors
-full_model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
-
-# Forward selection using AIC as the criterion
-stepwise_model <- step(null_model, scope = list(lower = null_model, upper = full_model), direction = "forward")
-
-# Summary of the final model
-summary(stepwise_model)
-
-```
+Starting with a model build more of environmental variables, related only with lifestyle, with no genetic influence what so ever:
 
 ```{r}
+selected_vars <- c("PhysicalActivity", "AlcoholConsumption", "Smoking")  # SPECIFY VARIABLES HERE
+selected_formula <- paste("Diagnosis ~", paste(selected_vars, collapse = " + "))
 
+# Print the selected formula
+cat("\nUsing the following formula for the model:", selected_formula, "\n")
 
-```
+model <- glm(as.formula(selected_formula), data = train_data, family = binomial)
+summary(model)
 
-```{r}
-# Predict probabilities on the test data
-pred_probs <- predict(stepwise_model, newdata = test_data, type = "response")
+pred_probs <- predict(model, newdata = test_data, type = "response")
 
-# Convert probabilities to class labels (threshold = 0.5)
+# Convert probabilities to class labels (0 or 1)
 pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+```
 
-# Confusion Matrix
+
+
+```{r}
 conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
 print(conf_matrix)
 
-# Calculate Accuracy
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
 print(paste("Accuracy: ", round(accuracy * 100, 2), "%"))
 
-# Optional: Precision, Recall, F1-Score
 precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
 recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
 f1_score <- 2 * (precision * recall) / (precision + recall)
 
-print(paste("Precision: ", round(precision * 100, 2), "%"))
-print(paste("Recall: ", round(recall * 100, 2), "%"))
-print(paste("F1-Score: ", round(f1_score * 100, 2), "%"))
+print(paste("Precision: ", precision))
+print(paste("Recall: ", recall))
+print(paste("F1 Score: ", f1_score))
 
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+plot(roc_curve, col = "blue", main = "ROC Curve")
+auc_value <- auc(roc_curve)
+print(paste("AUC: ", auc_value))
+
+
+cooks_distance <- cooks.distance(model)
+
+# Plot Cook's Distance
+plot(cooks_distance, 
+     main = "Cook's Distance", 
+     ylab = "Cook's Distance", 
+     xlab = "Observation Index", 
+     pch = 20, 
+     col = ifelse(cooks_distance > (4 / nrow(train_data)), "red", "black"))
+abline(h = 4 / nrow(train_data), col = "red", lty = 2)
+
+# Highlight influential points
+influential_points <- which(cooks_distance > (4 / nrow(train_data)))
+print(paste("Influential points:", paste(influential_points, collapse = ", ")))
 ```
+
+As expected, the lifestyle is highly influential in predicting Liver disease. It might not be the best model but it still has good results considering it is only considering lifestyle.
+
+Now, let's built a model with only variables we can not control at all.
+
+
+```{r}
+selected_vars <- c("Age", "Gender", "GeneticRisk")  # SPECIFY VARIABLES HERE
+selected_formula <- paste("Diagnosis ~", paste(selected_vars, collapse = " + "))
+
+# Print the selected formula
+cat("\nUsing the following formula for the model:", selected_formula, "\n")
+
+model <- glm(as.formula(selected_formula), data = train_data, family = binomial)
+summary(model)
+
+pred_probs <- predict(model, newdata = test_data, type = "response")
+
+# Convert probabilities to class labels (0 or 1)
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+```
+
+
+
+```{r}
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
+print(conf_matrix)
+
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Accuracy: ", round(accuracy * 100, 2), "%"))
+
+precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+print(paste("Precision: ", precision))
+print(paste("Recall: ", recall))
+print(paste("F1 Score: ", f1_score))
+
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+plot(roc_curve, col = "blue", main = "ROC Curve")
+auc_value <- auc(roc_curve)
+print(paste("AUC: ", auc_value))
+
+
+cooks_distance <- cooks.distance(model)
+
+# Plot Cook's Distance
+plot(cooks_distance, 
+     main = "Cook's Distance", 
+     ylab = "Cook's Distance", 
+     xlab = "Observation Index", 
+     pch = 20, 
+     col = ifelse(cooks_distance > (4 / nrow(train_data)), "red", "black"))
+abline(h = 4 / nrow(train_data), col = "red", lty = 2)
+
+# Highlight influential points
+influential_points <- which(cooks_distance > (4 / nrow(train_data)))
+print(paste("Influential points:", paste(influential_points, collapse = ", ")))
+```
+
+
+The results are less good considering only these variables. However, it still makes some considerable predictions. And in here is important to note that there are less red dots in the cook's distance. These metrics are very straight forward and less prone to errors and we can see that in here.
+
+Now, we are building a model considering some more variables, with some genetic component but also a bit environmental
+
+
+
+```{r}
+selected_vars <- c("BMI", "Diabetes", "Hypertension")  # SPECIFY VARIABLES HERE
+selected_formula <- paste("Diagnosis ~", paste(selected_vars, collapse = " + "))
+
+# Print the selected formula
+cat("\nUsing the following formula for the model:", selected_formula, "\n")
+
+model <- glm(as.formula(selected_formula), data = train_data, family = binomial)
+summary(model)
+
+pred_probs <- predict(model, newdata = test_data, type = "response")
+
+# Convert probabilities to class labels (0 or 1)
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+```
+
+
+
+```{r}
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
+print(conf_matrix)
+
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Accuracy: ", round(accuracy * 100, 2), "%"))
+
+precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+print(paste("Precision: ", precision))
+print(paste("Recall: ", recall))
+print(paste("F1 Score: ", f1_score))
+
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+plot(roc_curve, col = "blue", main = "ROC Curve")
+auc_value <- auc(roc_curve)
+print(paste("AUC: ", auc_value))
+
+
+cooks_distance <- cooks.distance(model)
+
+# Plot Cook's Distance
+plot(cooks_distance, 
+     main = "Cook's Distance", 
+     ylab = "Cook's Distance", 
+     xlab = "Observation Index", 
+     pch = 20, 
+     col = ifelse(cooks_distance > (4 / nrow(train_data)), "red", "black"))
+abline(h = 4 / nrow(train_data), col = "red", lty = 2)
+
+# Highlight influential points
+influential_points <- which(cooks_distance > (4 / nrow(train_data)))
+print(paste("Influential points:", paste(influential_points, collapse = ", ")))
+```
+
+These variables, that can have some genetic component but definitly also affected by lifestyle, have the results in the middle of the previous tests: worst than the model only by lifestyle variables but better than the model with only genetic variables. So, we are going to start mixing these, because obviously the liver disease is a complex disease that envolves both contributions: genetic and lifestyle
+
+```{r}
+selected_vars <- c("Age", "Gender", "GeneticRisk", "AlcoholConsumption", "PhysicalActivity")  # SPECIFY VARIABLES HERE
+selected_formula <- paste("Diagnosis ~", paste(selected_vars, collapse = " + "))
+
+# Print the selected formula
+cat("\nUsing the following formula for the model:", selected_formula, "\n")
+
+model <- glm(as.formula(selected_formula), data = train_data, family = binomial)
+summary(model)
+
+pred_probs <- predict(model, newdata = test_data, type = "response")
+
+# Convert probabilities to class labels (0 or 1)
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+```
+
+```{r}
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
+print(conf_matrix)
+
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Accuracy: ", round(accuracy * 100, 2), "%"))
+
+precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+print(paste("Precision: ", precision))
+print(paste("Recall: ", recall))
+print(paste("F1 Score: ", f1_score))
+
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+plot(roc_curve, col = "blue", main = "ROC Curve")
+auc_value <- auc(roc_curve)
+print(paste("AUC: ", auc_value))
+
+
+cooks_distance <- cooks.distance(model)
+
+# Plot Cook's Distance
+plot(cooks_distance, 
+     main = "Cook's Distance", 
+     ylab = "Cook's Distance", 
+     xlab = "Observation Index", 
+     pch = 20, 
+     col = ifelse(cooks_distance > (4 / nrow(train_data)), "red", "black"))
+abline(h = 4 / nrow(train_data), col = "red", lty = 2)
+
+# Highlight influential points
+influential_points <- which(cooks_distance > (4 / nrow(train_data)))
+print(paste("Influential points:", paste(influential_points, collapse = ", ")))
+```
+
+The model mixing both types of variables was the one with best results so far, proving how the liver disease is indeed a complex disease with contributions of both factors. 
+
+Now, we perfom one of the last tests with the LiverFunctionTest. This variable is a bit "biased" since it is already an indicator of health of the patient regarding the liver. 
+
+```{r}
+selected_vars <- c("Age", "Gender", "GeneticRisk", "AlcoholConsumption", "PhysicalActivity", "LiverFunctionTest")  # SPECIFY VARIABLES HERE
+selected_formula <- paste("Diagnosis ~", paste(selected_vars, collapse = " + "))
+
+# Print the selected formula
+cat("\nUsing the following formula for the model:", selected_formula, "\n")
+
+model <- glm(as.formula(selected_formula), data = train_data, family = binomial)
+summary(model)
+
+pred_probs <- predict(model, newdata = test_data, type = "response")
+
+# Convert probabilities to class labels (0 or 1)
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+```
+
+```{r}
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
+print(conf_matrix)
+
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+print(paste("Accuracy: ", round(accuracy * 100, 2), "%"))
+
+precision <- conf_matrix[2, 2] / sum(conf_matrix[2, ])
+recall <- conf_matrix[2, 2] / sum(conf_matrix[, 2])
+f1_score <- 2 * (precision * recall) / (precision + recall)
+
+print(paste("Precision: ", precision))
+print(paste("Recall: ", recall))
+print(paste("F1 Score: ", f1_score))
+
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+plot(roc_curve, col = "blue", main = "ROC Curve")
+auc_value <- auc(roc_curve)
+print(paste("AUC: ", auc_value))
+
+
+cooks_distance <- cooks.distance(model)
+
+# Plot Cook's Distance
+plot(cooks_distance, 
+     main = "Cook's Distance", 
+     ylab = "Cook's Distance", 
+     xlab = "Observation Index", 
+     pch = 20, 
+     col = ifelse(cooks_distance > (4 / nrow(train_data)), "red", "black"))
+abline(h = 4 / nrow(train_data), col = "red", lty = 2)
+
+# Highlight influential points
+influential_points <- which(cooks_distance > (4 / nrow(train_data)))
+print(paste("Influential points:", paste(influential_points, collapse = ", ")))
+```
+
+As expected, this variable had a lot of effect in the results of the model because it is already a test about this disease.
+
+
+
+
 
 
 
