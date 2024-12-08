@@ -83,3 +83,9 @@ cooks_distance <- cooks.distance(model)
 plot(cooks_distance, main = "Cook's Distance")
 abline(h = 4 / nrow(train_data), col = "red", lty = 2)
 
+save_path <- "/Users/asus/Desktop/IFB_project/API"
+
+# Save the model to the specified path
+model_file <- file.path(save_path, "liver_model.rds")
+saveRDS(model, file = model_file)
+
