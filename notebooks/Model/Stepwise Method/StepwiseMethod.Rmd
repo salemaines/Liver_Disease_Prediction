@@ -1,0 +1,107 @@
+---
+title: "Stepwise Method logistic regression"
+output: html_notebook
+---
+
+Our dataset has 10 variables besides the class variable. To build a logistic regression model from this dataset, we have numerous combinations of these variables that could be a good model. So, to understand what could be the optimal model without making all the possible tries, we do the stepwise method backwards. This consists in starting modeling where the algorithm is including all variables and systematically remove variables one at a time based on a selection criteria. Basically, the variable that contributes the least to the model (based on the criterion) is removed and this process continues.
+
+
+```{r}
+library(MASS) 
+library(caret)
+library(car)
+library(pROC)
+```
+
+Data and data preparation
+
+```{r}
+data <- read.csv("/Users/asus/Desktop/R/Liver_disease_data.csv")
+
+data$Diagnosis <- as.factor(data$Diagnosis)
+data$Gender <- as.factor(data$Gender)
+data$Smoking <- as.factor(data$Smoking)
+data$Diabetes <- as.factor(data$Diabetes)
+data$Hypertension <- as.factor(data$Hypertension)
+
+# data into train and test
+set.seed(123)
+trainIndex <- createDataPartition(data$Diagnosis, p = 0.7, list = FALSE)
+train_data <- data[trainIndex, ]
+test_data <- data[-trainIndex, ]
+```
+
+
+Do the stepwise method backward 
+
+```{r}
+# full model for stepwise regression
+full_model <- glm(Diagnosis ~ ., data = train_data, family = binomial)
+
+# stepwise regression
+final_model <- stepAIC(full_model, direction = "forward", trace = FALSE)
+
+# evaluate the final model
+pred_probs <- predict(final_model, newdata = test_data, type = "response")
+pred_class <- ifelse(pred_probs > 0.5, 1, 0)
+```
+
+
+Evaluate the final model 
+
+```{r}
+#metrics
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix) * 100
+
+# print everything
+print(summary(final_model))
+cat(sprintf("\nAccuracy of the final model: %.2f%%\n", accuracy))
+conf_matrix <- table(Predicted = pred_class, Actual = test_data$Diagnosis)
+print(conf_matrix)
+```
+
+In this case, the final model of in the stepwise regression was the one including all variables. Supposedly, this means that every variable improves the model's fit indicating that all the predictors add unique useful information for predicting the class "Diagnostic". However, this can also mean that the model might be overfitting. However, due to the small collinearity between predictors and due to the fact that the dataset is relatively big, it is not likely to be overfitting. 
+
+Also, looking at the summary of our final model, all p-values are very small, indicating that indeed all are contributing for the class prediction.
+
+To make sure that our model does not have high multicollinearity, we are going to check the Variance Inflation Factor:
+
+```{r}
+vif(final_model)
+```
+
+As we can see, all the values are very small, indicating not existing a problem with multicollinearity. 
+
+Besides that, by comparing the performance with simpler models, doing them, manually, in the other script, we were never able to have better results than with all the variables in the logistic regression models. 
+
+
+```{r}
+roc_curve <- roc(test_data$Diagnosis, pred_probs)
+auc_value <- auc(roc_curve)
+cat(sprintf("AUC: %.2f\n", auc_value))
+plot(roc_curve, main = "ROC Curve", col = "blue", lwd = 2)
+```
+
+
+Considering the complexity of the health of the liver, when analysing the dataset and comparing it to the literature, it makes sense that all these variables add valuable information to the class prediction. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
