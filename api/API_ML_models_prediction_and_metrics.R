@@ -1,7 +1,11 @@
 # Directory where models and metrics are stored
 model_dir <- "/Users/asus/Desktop/IFB_project/API"
 
-#* @get /models
+#' @apiTitle Liver Disease Prediction API with ML models
+#' @apiDescription This API allows to see ML models trained with the Liver Disease Dataset and test with them
+
+#* Execute all the available ML models and see its metrics
+#* @get /modelS
 function() {
   # Load metrics for all models
   models <- list.files(path = model_dir, pattern = "_metrics\\.rds$", full.names = TRUE)
@@ -15,6 +19,7 @@ function() {
   return(model_metrics)
 }
 
+#* Chose one model and see its metrics
 #* @get /metrics
 function(model_name) {
   metrics_file <- file.path(model_dir, paste0(model_name, "_metrics.rds"))
@@ -24,9 +29,10 @@ function(model_name) {
   return(readRDS(metrics_file))
 }
 
+#* See the prediction made by the model for a new data. 
 #* @post /predict
 #* @param model_name The name of the model to use
-#* @param new_data The new data for prediction
+#* @param new_data The new data for prediction. It should be in this format: {   "Age": 25,   "Gender": "0",   "Diabetes": "0",   "PhysicalActivity": 10,   "Hypertension": "0",   "LiverFunctionTest": 77,   "GeneticRisk": 2,   "Smoking": "0",   "BMI": 22.5,   "AlcoholConsumption": 100 }
 function(model_name, new_data) {
   # Load the model from the saved directory
   model_file <- file.path(model_dir, paste0(model_name, "_model.rds"))
