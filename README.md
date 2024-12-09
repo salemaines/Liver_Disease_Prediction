@@ -32,6 +32,10 @@ The dataset includes the following columns:
 - **api/**: Contains different APIs for logistic regression and machine learning models.
 - **requirements/**: Contains dependency files to ensure the environment is set up correctly.
 
+## Example of usage 
+
+The file API_everything.R inside the api folder has the API with ML models for selection, to analyse some metrics and also to do a prediction giving a new data. Then, also allows to choose variables to include in the logistic regression model, test that model with new data and see some evaluation metrics.
+
 ## Installation and Setup
 
 To get started with this project, you need to have R and the necessary R packages installed.
