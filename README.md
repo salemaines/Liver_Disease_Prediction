@@ -4,11 +4,11 @@ This project aims to predict liver disease based on a dataset containing various
 
 ## Project Overview
 
-The project analyzes a dataset to predict liver disease using machine learning models. The dataset contains several health parameters like age, gender, BMI, alcohol consumption, smoking status, and liver function tests. Multiple models are created and evaluated, including logistic regression and other machine learning classifiers.
+The project analyzes a dataset to predict liver disease using machine learning models. The dataset contains several health parameters like age, gender, BMI, alcohol consumption, smoking status, and liver function tests. Multiple models are created and evaluated, including logistic regression and other machine learning classifiers. We created a logistic regression model which allows for the user to choose which variables to include in the model (with the respective API), do predictions with that model and see evaluation metrics. Also, performed a stepwise method to understand the best logistic regression model. Then, we did a script which includes several ML models and an API which allows to choose the ML model and do a prediction with that model as well as have some metrics.
 
 ## Dataset
 
-The dataset used in this project is the [Liver Disease Dataset from Kaggle](https://www.kaggle.com/datasets/xxxxx/liver-disease-dataset). 
+The dataset used in this project is the [Liver Disease Dataset from Kaggle](https://www.kaggle.com/datasets/rabieelkharoua/predict-liver-disease-1700-records-dataset). 
 
 The dataset includes the following columns:
 - **Age**: Age of the individual (20 to 80 years)
@@ -35,6 +35,8 @@ The dataset includes the following columns:
 ## Installation and Setup
 
 To get started with this project, you need to have R and the necessary R packages installed.
+
+Also, for example, regarding dataset location in the computer, might need to be changed. 
 
 1. Clone the repository:
 
