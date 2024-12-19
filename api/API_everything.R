@@ -132,46 +132,52 @@ function(variables = "") {
   ))
 }
 
-#* Predict using the trained logistic regression model using a new data
-#* @get /predict_logreg
-#* @param data JSON data with values for the logistic regression model's variables. A comma-separated string with values for the variables used in the model (example: if the variables choosen were Age, Gender and PhysicalActivity, you should put "44,0,50" for example)
+#* Predict using the trained logistic regression model using new data
+#* @post /predict_logreg
+#* @param data JSON data with values for the logistic regression model's variables (example: {"Age": 44, "Gender": 0, "PhysicalActivity": 50}).
 #* @description Predict using the trained logistic regression model
-function(data = "") {
-  if (is.null(model)) {
-    return(list(error = "No model has been trained. Please train the model first using /train_model"))
+function(data) {
+  if (is.null(data)) {
+    return(list(error = "Please provide values for the variables in JSON format."))
   }
   
-  if (data == "") {
-    return(list(error = "Please provide values for the variables (example: age, gender)."))
+  # Parse JSON input
+  input_data <- tryCatch(jsonlite::fromJSON(data), 
+                         error = function(e) {
+                           return(list(error = paste("JSON parsing error:", e$message)))
+                         })
+  
+  # Check for parsing errors
+  if (is.list(input_data) && "error" %in% names(input_data)) {
+    return(input_data)
   }
   
-  # Ensure the number of values in 'data' matches the number of variables
-  input_values <- strsplit(data, ",")[[1]]
-  input_values <- trimws(input_values)  # Remove extra spaces
+  # Convert input to data frame
+  new_data <- as.data.frame(input_data)
   
-  if (length(input_values) != length(selected_vars)) {
-    return(list(error = paste("Expected", length(selected_vars), "values, but received", length(input_values), "values.")))
+  # Ensure all columns are correctly typed
+  numeric_vars <- c("Age", "BMI", "AlcoholConsumption", "PhysicalActivity")
+  factor_vars <- c("Gender", "Smoking", "Diabetes", "Hypertension")
+  
+  for (var in numeric_vars) {
+    if (var %in% names(new_data)) {
+      new_data[[var]] <- as.numeric(new_data[[var]])
+    }
   }
-  
-  # Create a new data frame for the input values
-  new_data <- data.frame(matrix(as.numeric(input_values), nrow = 1))
-  colnames(new_data) <- selected_vars
-  
-  # Ensure categorical columns are factors
-  factor_columns <- c("Gender", "Smoking", "Diabetes", "Hypertension")  # List of factor variables
-  for (col in factor_columns) {
-    if (col %in% names(new_data)) {
-      new_data[[col]] <- as.factor(new_data[[col]])  # Convert to factor if not already
+  for (var in factor_vars) {
+    if (var %in% names(new_data)) {
+      new_data[[var]] <- as.factor(new_data[[var]])
     }
   }
   
-  # Make prediction
+  # Remaining logic for prediction
   pred_prob <- predict(model, newdata = new_data, type = "response")
   pred_class <- ifelse(pred_prob > 0.5, 1, 0)
   
-  # Return prediction result
   return(list(
     prediction = pred_class,
     probability = pred_prob
   ))
 }
+
+
